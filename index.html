@@ -131,7 +131,7 @@ return{T:T.filter(function(t){return!t.hide}),open:open.filter(function(o){retur
 function addDays(d,n){var x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)}
 var PER=[['1D',0],['1W',6],['1M',29],['3M',89],['YTD','y'],['All','a']];
 var BASE=[['1D',0],['1W',6],['1M',29],['3M',89],['YTD','y']];
-function buildPER(T){var ys={};T.forEach(function(t){ys[t.date.slice(0,4)]=1});PER=BASE.concat(Object.keys(ys).sort().reverse().map(function(y){return[y,'Y'+y]}),[['All','a']]);if(!PER.some(function(x){return x[0]==period}))period='1D'}
+function buildPER(T){var ys={},mx='';T.forEach(function(t){ys[t.date.slice(0,4)]=1;if(t.date>mx)mx=t.date});delete ys[mx.slice(0,4)];PER=BASE.concat([['All','a']],Object.keys(ys).sort().reverse().map(function(y){return[y,'Y'+y]}));if(!PER.some(function(x){return x[0]==period}))period='1D'}
 function endOf(p){var e=PER.filter(function(x){return x[0]==p})[0][1];return typeof e=='string'&&e[0]=='Y'?e.slice(1)+'-12-31':'9999-12-31'}
 function startOf(p,anchor){var e=PER.filter(function(x){return x[0]==p})[0][1];
  if(e=='a')return'0000';if(typeof e=='string'&&e[0]=='Y')return e.slice(1)+'-01-01';if(e=='y')return anchor.slice(0,4)+'-01-01';return addDays(anchor,-e)}
@@ -162,7 +162,11 @@ function render(){
  var start=startOf(period,anchor),end=endOf(period),F=T.filter(function(t){return t.date>=start&&t.date<=end}),S=per[period];
  var h='<div class="card"><div class="mut">Realized P&amp;L \u00b7 1 day ('+dl(anchor)+')</div><div class="big '+cls(per['1D'].tot)+'">'+f(per['1D'].tot,1)+'</div>'+
  '<div class="grid">'+['1W','1M','All'].map(function(p){return'<div class="mini"><span class="mut">'+p+'</span><b class="'+cls(per[p].tot)+'">'+f(per[p].tot,1)+'</b></div>'}).join('')+'</div></div>';
- h+='<div class="chips">'+PER.map(function(p){return'<button class="chip'+(p[0]==period?' on':'')+'" data-p="'+p[0]+'">'+p[0]+'</button>'}).join('')+'</div>';
+ function isY(p){return typeof p[1]=='string'&&p[1][0]=='Y'}
+ function chip(p,y){return'<button class="chip'+(p[0]==period?' on':'')+'" data-p="'+p[0]+'"'+(y?' style="padding:7px 0;text-align:center"':'')+'>'+p[0]+'</button>'}
+ var YR=PER.filter(isY);
+ h+='<div class="chips" style="margin-bottom:'+(YR.length?6:12)+'px">'+PER.filter(function(p){return!isY(p)}).map(function(p){return chip(p,0)}).join('')+'</div>';
+ if(YR.length)h+='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px">'+YR.map(function(p){return chip(p,1)}).join('')+'</div>';
  h+='<div class="card"><div class="mut">'+period+' total</div><div class="big '+cls(S.tot)+'" style="font-size:26px">'+f(S.tot,1)+'</div><div class="mut">'+S.n+' closing trades \u00b7 '+(S.n?Math.round(S.w/S.n*100):0)+'% winners</div></div>';
  h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['add','Data']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
  if(view=='trades'){var L=F.filter(function(t){return t.pnl!=null}).reverse(),O=C.open.filter(function(o){return o.date>=start&&o.date<=end}).sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
