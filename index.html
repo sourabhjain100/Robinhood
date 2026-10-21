@@ -18,7 +18,7 @@ h1{font-size:18px;margin:2px 0 12px}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px}
 .chip,.tab{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:20px;padding:7px 13px;font-size:13px;white-space:nowrap;cursor:pointer}
 .chip.on,.tab.on{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}
-.tabs{display:flex;gap:6px;margin-bottom:12px}.tab{flex:1;text-align:center;border-radius:10px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tab{flex:1;text-align:center;border-radius:10px;padding:8px 2px;font-size:12.5px}
 .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}
 .row:last-child{border-bottom:0}
 .row .l{min-width:0}.row .t{font-weight:600;font-size:14px}.row .r{text-align:right;font-weight:600;white-space:nowrap}
@@ -170,7 +170,7 @@ function render(){
  h+='<div class="chips" style="margin-bottom:'+(YR.length?6:12)+'px">'+PER.filter(function(p){return!isY(p)}).map(function(p){return chip(p,0)}).join('')+'</div>';
  if(YR.length)h+='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px">'+YR.map(function(p){return chip(p,1)}).join('')+'</div>';
  h+='<div class="card"><div class="mut">'+period+' total</div><div class="big '+cls(S.tot)+'" style="font-size:26px">'+f(S.tot,1)+'</div><div class="mut">'+S.n+' closing trades \u00b7 '+(S.n?Math.round(S.w/S.n*100):0)+'% winners</div></div>';
- h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['add','Data']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
+ h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open'],['add','Data']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
  if(view=='trades'){var L=F.filter(function(t){return t.pnl!=null}).reverse(),O=mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end})).sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
  if(view=='stock'){var g={};F.filter(function(t){return t.pnl!=null}).concat(mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end}))).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
   var keys=Object.keys(g).sort(function(a,b){if(stockSort=='name')return a.localeCompare(b);var d=stats(g[b]).tot-stats(g[a]).tot;return stockSort=='loss'?-d:d});
@@ -181,9 +181,10 @@ function render(){
   var ds=Object.keys(d).sort().reverse();
   h+='<div class="card">'+(ds.length?ds.map(function(k){var s=stats(d[k]);
    return'<details><summary><div><div class="t" style="font-weight:700">'+dl(k)+'</div><div class="mut">'+s.n+' closing trades</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+d[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
- if(view=='add'){
-  if(C.open.length){h+='<div class="card"><div class="t" style="font-weight:700">Open positions (unrealized, not in P&amp;L)</div>'+mergeOpen(C.open).map(function(o){return pairWrap(o.name,f(o.cost),openCol(o.lots),'<div class="mut">Still open</div>',(o.dir=='L'?'Long ':'Short ')+o.q+' \u00b7 '+dl(o.date))}).join('')+'</div>'}
-  h+=addUI()}
+ if(view=='open'){
+  if(!C.open.length)h+='<div class="card empty">No open positions.</div>';
+  if(C.open.length){h+='<div class="card"><div class="t" style="font-weight:700">Open positions (unrealized, not in P&amp;L)</div>'+mergeOpen(C.open).map(function(o){return pairWrap(o.name,f(o.cost),openCol(o.lots),'<div class="mut">Still open</div>',(o.dir=='L'?'Long ':'Short ')+o.q+' \u00b7 '+dl(o.date))}).join('')+'</div>'}}
+ if(view=='add'){h+=addUI()}
  app.innerHTML=h;bind();
 }
 function addUI(){return'<div class="card"><div class="t" style="font-weight:700;margin-bottom:6px">Add trades</div><div class="mut" style="margin-bottom:8px">Paste Robinhood activity text. Repeated trades are skipped automatically. Realized P&amp;L is matched per contract; fees are ignored. Expired positions count as a full loss/gain.</div><textarea id="ta" placeholder="Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="csv">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none"><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
