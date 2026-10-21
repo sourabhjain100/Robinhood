@@ -84,13 +84,13 @@ function parseCSV(text){
  rows.forEach(function(r,i){if(hi<0&&r.some(function(x){return /^trans code$/i.test(x.trim())}))hi=i});
  if(hi<0)return[];
  var H=rows[hi].map(function(x){return x.trim().toLowerCase()});
- var ci={ad:H.indexOf('activity date'),de:H.indexOf('description'),tc:H.indexOf('trans code'),q:H.indexOf('quantity'),a:H.indexOf('amount')};
+ var ci={ad:H.indexOf('activity date'),de:H.indexOf('description'),tc:H.indexOf('trans code'),q:H.indexOf('quantity'),a:H.indexOf('amount'),pr:H.indexOf('price')};
  for(var i=hi+1;i<rows.length;i++){var r=rows[i];if(r.length<5||!r.join('').trim())continue;
   var code=(r[ci.tc]||'').trim().toUpperCase();
   if(['BTO','BTC','STO','STC','OEXP'].indexOf(code)<0){if(code)csvSkipped++;continue}
   var m=(r[ci.de]||'').match(/(\S+) (\d{1,2})\/(\d{1,2})\/(\d{4}) (Call|Put) \$([\d,.]+)/),dm=(r[ci.ad]||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(!m||!dm){csvSkipped++;continue}
-  var qty=parseInt((r[ci.q]||'').replace(/[^\d]/g,''))||0,amt=Math.abs(parseFloat(((r[ci.a]||'').replace(/[$,()\s]/g,''))))||0;
+  var qty=parseInt((r[ci.q]||'').replace(/[^\d]/g,''))||0,amt=qty*(parseFloat((r[ci.pr]||'').replace(/[$,\s]/g,''))||0)*100;
   out.push({side:code=='OEXP'?'Exp':(code[0]=='B'?'Buy':'Sell'),tk:m[1],strike:m[6].replace(/,/g,''),type:m[5],exp:(+m[2])+'/'+(+m[3]),date:iso(dm[3],+dm[1],+dm[2]),qty:code=='OEXP'?qty:qty,amt:code=='OEXP'?0:amt});
  }
  if(out.length>1&&out[0].date<out[out.length-1].date)out.reverse();
@@ -116,12 +116,12 @@ function compute(){
  var pos={};
  T.forEach(function(t){
   var k=[t.tk,+t.strike,t.type,t.exp].join('|'),lots=pos[k]=pos[k]||[],pnl=0,closed=0;
-  if(t.side=='Exp'){lots.forEach(function(l){pnl+=l.dir=='L'?-l.p*l.q:l.p*l.q;(t.m=t.m||[]).push({q:l.q,p:l.p,date:l.date,dir:l.dir});closed+=l.q});pos[k]=[];
+  if(t.side=='Exp'){lots.forEach(function(l){pnl+=l.dir=='L'?-l.p*l.q:l.p*l.q;(t.m=t.m||[]).push({q:l.q,p:l.p,date:l.date,dir:l.dir,full:l.q==l.orig});closed+=l.q});pos[k]=[];
    if(closed)t.pnl=pnl,t.qty=closed;else t.hide=true;return}
   var per=t.amt/t.qty,rem=t.qty,opp=t.side=='Buy'?'S':'L';
   while(rem>0&&lots.length&&lots[0].dir==opp){var l=lots[0],tk=Math.min(rem,l.q);
-   pnl+=(t.side=='Buy'?l.p-per:per-l.p)*tk;(t.m=t.m||[]).push({q:tk,p:l.p,date:l.date,dir:l.dir});closed+=tk;rem-=tk;l.q-=tk;if(l.q==0)lots.shift()}
-  if(rem>0)lots.push({dir:t.side=='Buy'?'L':'S',q:rem,p:per,date:t.date});
+   pnl+=(t.side=='Buy'?l.p-per:per-l.p)*tk;(t.m=t.m||[]).push({q:tk,p:l.p,date:l.date,dir:l.dir,full:l.q==l.orig&&tk==l.q});closed+=tk;rem-=tk;l.q-=tk;if(l.q==0)lots.shift()}
+  if(rem>0)lots.push({dir:t.side=='Buy'?'L':'S',q:rem,p:per,date:t.date,orig:rem});
   if(closed)t.pnl=pnl;
  });
  var open=[];Object.keys(pos).forEach(function(k){pos[k].forEach(function(l){var p=k.split('|');open.push({k:k,tk:p[0],name:p[0]+' '+Number(p[1]).toLocaleString('en-US')+' '+p[2]+(p[3]?' '+p[3]:''),dir:l.dir,q:l.q,cost:l.p*l.q,p:l.p,date:l.date})})});
@@ -144,14 +144,16 @@ function tradeRow(t){
  var sub=dl(t.date)+(t.side=='Exp'?' \u00b7 '+t.qty+' worthless':' \u00b7 '+t.qty+' \u00d7 '+f(t.amt/t.qty/100)+' \u00b7 '+f(t.amt));
  var r=t.pnl==null?'<span class="mut">Opening</span>':'<span class="'+cls(t.pnl)+'">'+f(t.pnl,1)+'</span>';
  return'<div class="row"><div class="l"><div class="t">'+label(t)+'</div><div class="mut">'+sub+'</div></div><div class="r">'+r+'</div></div>'}
-function openCol(ms){return ms.map(function(m){return'<div>'+(m.dir=='L'?'Buy':'Sell')+' '+m.q+' \u00d7 '+f(m.p/100)+'<div class="mut">'+dl(m.date)+'</div></div>'}).join('')+openAvg(ms)}
+function openCol(ms){return ms.map(function(m){return'<div>'+(m.dir=='L'?'Buy':'Sell')+' '+m.q+' \u00d7 '+f(m.p/100)+'<div class="mut">'+dl(m.date)+(m.n>1?' \u00b7 '+m.n+' fills':'')+'</div></div>'}).join('')+openAvg(ms)}
 function openAvg(ms){if(ms.length<2)return'';var q=0,c=0;ms.forEach(function(m){q+=m.q;c+=m.q*m.p});return'<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--bd);font-weight:600">Avg '+q+' \u00d7 '+f(c/q/100)+'</div>'}
 function pairWrap(name,right,o,c,sub){return'<details><summary style="padding:10px 0"><div><div class="t" style="font-weight:700">'+name+'</div><div class="mut">'+sub+'</div></div><div class="r" style="font-weight:700">'+right+' <span class="mut">\u25be</span></div></summary><div class="pair" style="margin:0 0 10px"><div><div class="mut">OPEN</div>'+o+'</div><div><div class="mut">CLOSE</div>'+c+'</div></div></details>'}
 function pairRow(t){var name=t.tk+' '+Number(t.strike).toLocaleString('en-US')+' '+t.type+' '+t.exp,cq=(t.m||[]).reduce(function(s,m){return s+m.q},0);
  var c=t.side=='Exp'?'<div>Expired worthless<div class="mut">'+dl(t.date)+'</div></div>':'<div>'+t.side+' '+cq+' \u00d7 '+f(t.amt/t.qty/100)+'<div class="mut">'+dl(t.date)+'</div></div>';
- return pairWrap(name,'<span class="'+cls(t.pnl)+'">'+f(t.pnl,1)+'</span>',openCol(t.m||[]),c,dl(t.date))}
+ return pairWrap(name,'<span class="'+cls(t.pnl)+'">'+f(t.pnl,1)+'</span>',openCol(mergeMatches(t.m||[])),c,dl(t.date))}
 function openRow(o){return pairWrap(o.name,'<span class="mut">Open</span>',openCol([o]),'<div class="mut">Still open</div>',dl(o.date))}
 function mergeOpen(list){var g={};list.forEach(function(o){var key=o.k+'|'+o.dir,x=g[key]=g[key]||{name:o.name,dir:o.dir,q:0,cost:0,lots:[],date:o.date};x.q+=o.q;x.cost+=o.cost;x.lots.push(o);if(o.date>x.date)x.date=o.date});return Object.keys(g).map(function(k){return g[k]}).sort(function(a,b){return a.date<b.date?1:-1})}
+function mergeMatches(ms){var g={},out=[];ms.forEach(function(m){if(m.full){var k=m.dir+m.date,x=g[k];if(x){x.p=(x.p*x.q+m.p*m.q)/(x.q+m.q);x.q+=m.q;x.n++}else{x=g[k]={q:m.q,p:m.p,date:m.date,dir:m.dir,n:1};out.push(x)}}else out.push(m)});return out}
+function mergeOpenDay(list){var g={},out=[];list.forEach(function(o){var k=o.k+'|'+o.dir+'|'+o.date,x=g[k];if(x){x.q+=o.q;x.cost+=o.cost;x.p=x.cost/x.q;x.n++}else{x=g[k]={k:o.k,tk:o.tk,name:o.name,dir:o.dir,q:o.q,cost:o.cost,p:o.p,date:o.date,n:1};out.push(x)}});return out}
 function itemRow(x){return x.cost!=null?openRow(x):pairRow(x)}
 function stats(list){var tot=0,w=0,n=0;list.forEach(function(t){if(t.pnl!=null){tot+=t.pnl;n++;if(t.pnl>0)w++}});return{tot:tot,w:w,n:n}}
 function render(){
@@ -169,13 +171,13 @@ function render(){
  if(YR.length)h+='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px">'+YR.map(function(p){return chip(p,1)}).join('')+'</div>';
  h+='<div class="card"><div class="mut">'+period+' total</div><div class="big '+cls(S.tot)+'" style="font-size:26px">'+f(S.tot,1)+'</div><div class="mut">'+S.n+' closing trades \u00b7 '+(S.n?Math.round(S.w/S.n*100):0)+'% winners</div></div>';
  h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['add','Data']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
- if(view=='trades'){var L=F.filter(function(t){return t.pnl!=null}).reverse(),O=C.open.filter(function(o){return o.date>=start&&o.date<=end}).sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
- if(view=='stock'){var g={};F.filter(function(t){return t.pnl!=null}).concat(C.open.filter(function(o){return o.date>=start&&o.date<=end})).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
+ if(view=='trades'){var L=F.filter(function(t){return t.pnl!=null}).reverse(),O=mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end})).sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
+ if(view=='stock'){var g={};F.filter(function(t){return t.pnl!=null}).concat(mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end}))).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
   var keys=Object.keys(g).sort(function(a,b){if(stockSort=='name')return a.localeCompare(b);var d=stats(g[b]).tot-stats(g[a]).tot;return stockSort=='loss'?-d:d});
   h+='<div class="chips">'+[['pnl','Profit \u2193'],['loss','Loss \u2193'],['name','Stock A\u2013Z']].map(function(s){return'<button class="chip'+(stockSort==s[0]?' on':'')+'" data-s="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>';
   h+='<div class="card">'+(keys.length?keys.map(function(k){var s=stats(g[k]);
    return'<details><summary><div><div class="t" style="font-weight:700">'+k+'</div><div class="mut">'+g[k].length+' trades \u00b7 '+s.w+'/'+s.n+' wins</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+g[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
- if(view=='day'){var d={};F.filter(function(t){return t.pnl!=null}).concat(C.open.filter(function(o){return o.date>=start&&o.date<=end})).forEach(function(t){(d[t.date]=d[t.date]||[]).push(t)});
+ if(view=='day'){var d={};F.filter(function(t){return t.pnl!=null}).concat(mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end}))).forEach(function(t){(d[t.date]=d[t.date]||[]).push(t)});
   var ds=Object.keys(d).sort().reverse();
   h+='<div class="card">'+(ds.length?ds.map(function(k){var s=stats(d[k]);
    return'<details><summary><div><div class="t" style="font-weight:700">'+dl(k)+'</div><div class="mut">'+s.n+' closing trades</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+d[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
