@@ -11,6 +11,7 @@
 *{box-sizing:border-box}html,body{margin:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:14px;max-width:640px;margin:0 auto}
 h1{font-size:18px;margin:2px 0 12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}.top h1{margin:0;font-size:17px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
 .big{font-size:34px;font-weight:700;letter-spacing:-.5px}
 .mut{color:var(--mut);font-size:13px}
@@ -33,14 +34,24 @@ button.act{border:0;border-radius:10px;padding:11px 16px;font-size:14px;font-wei
 button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px}
 .pair .mut{font-size:11px}
+.mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .dh{text-align:center;font-size:11px;color:var(--mut);padding:2px 0}
+.cal .d{min-height:46px;border-radius:8px;padding:3px 1px;text-align:center;background:var(--bg);font-size:10px;line-height:1.25;cursor:pointer;border:1px solid transparent;overflow:hidden}
+.cal .d b{display:block;font-size:11px;font-weight:600;margin-bottom:2px}
+.cal .d.p{background:rgba(10,154,74,.16);color:var(--g)}
+.cal .d.n{background:rgba(214,51,74,.16);color:var(--r)}
+.cal .d.e{background:transparent;cursor:default;color:var(--mut)}
+.cal .d.sel{border-color:var(--tx)}
+.cal .d.td b{text-decoration:underline}
 .empty{text-align:center;color:var(--mut);padding:24px 0}
 </style>
 </head>
 <body>
-<h1>Robinhood P&amp;L Report</h1>
+<div class="top"><h1>Robinhood P&amp;L Report</h1><button class="chip" id="addbtn">Add or Upload data</button></div>
 <div id="app"></div>
 <script>
-var KEY='rh_trades_v1',SEQ='rh_seq_v1',stockSort='pnl';
+var KEY='rh_trades_v1',SEQ='rh_seq_v1',stockSort='pnl',lastCtx=null,showRep='';
 var trades=[],seq=0,period='1D',view='trades',msg='';
 try{trades=JSON.parse(localStorage.getItem(KEY)||'[]');seq=+(localStorage.getItem(SEQ)||0)}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(trades));localStorage.setItem(SEQ,seq)}catch(e){}}
@@ -130,7 +141,7 @@ return{T:T.filter(function(t){return!t.hide}),open:open.filter(function(o){retur
 }
 function addDays(d,n){var x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)}
 var PER=[['1D',0],['1W',6],['1M',29],['3M',89],['YTD','y'],['All','a']];
-var BASE=[['1D',0],['1W',6],['1M',29],['3M',89],['YTD','y']];
+var BASE=[['1D',0],['1W',6],['1M',29],['3M',89],['6M',181],['YTD','y']];
 function buildPER(T){var ys={},mx='';T.forEach(function(t){ys[t.date.slice(0,4)]=1;if(t.date>mx)mx=t.date});delete ys[mx.slice(0,4)];PER=BASE.concat([['All','a']],Object.keys(ys).sort().reverse().map(function(y){return[y,'Y'+y]}));if(!PER.some(function(x){return x[0]==period}))period='1D'}
 function endOf(p){var e=PER.filter(function(x){return x[0]==p})[0][1];return typeof e=='string'&&e[0]=='Y'?e.slice(1)+'-12-31':'9999-12-31'}
 function startOf(p,anchor){var e=PER.filter(function(x){return x[0]==p})[0][1];
@@ -155,13 +166,37 @@ function mergeOpen(list){var g={};list.forEach(function(o){var key=o.k+'|'+o.dir
 function mergeMatches(ms){var g={},out=[];ms.forEach(function(m){if(m.full){var k=m.dir+m.date,x=g[k];if(x){x.p=(x.p*x.q+m.p*m.q)/(x.q+m.q);x.q+=m.q;x.n++}else{x=g[k]={q:m.q,p:m.p,date:m.date,dir:m.dir,n:1};out.push(x)}}else out.push(m)});return out}
 function mergeOpenDay(list){var g={},out=[];list.forEach(function(o){var k=o.k+'|'+o.dir+'|'+o.date,x=g[k];if(x){x.q+=o.q;x.cost+=o.cost;x.p=x.cost/x.q;x.n++}else{x=g[k]={k:o.k,tk:o.tk,name:o.name,dir:o.dir,q:o.q,cost:o.cost,p:o.p,date:o.date,n:1};out.push(x)}});return out}
 function itemRow(x){return x.cost!=null?openRow(x):pairRow(x)}
+function copyText(t,cb){function fb(){var x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0';document.body.appendChild(x);x.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(x);cb(ok)}
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){cb(true)},fb)}else fb()}
+function buildReport(){var x=lastCtx;if(!x)return'';var cl=x.F.filter(function(t){return t.pnl!=null}),S=x.S,L=[],W=[],Ls=[];
+ cl.forEach(function(t){if(t.pnl>0)W.push(t.pnl);else if(t.pnl<0)Ls.push(t.pnl)});
+ function sum(a){return a.reduce(function(s,v){return s+v},0)}
+ var gw=sum(W),gl=-sum(Ls),pf=gl?(gw/gl).toFixed(2):'n/a',en=x.end<x.anchor?x.end:x.anchor;
+ function sg(n){return(n>=0?'+':'-')+Math.abs(n).toFixed(2)}
+ L.push('ROBINHOOD OPTIONS REPORT - period '+period+' ('+(x.start=='0000'?'start':x.start)+' to '+en+')');
+ L.push('Realized P&L '+sg(S.tot)+'; '+S.n+' closed trades; winners '+S.w+' ('+(S.n?Math.round(S.w/S.n*100):0)+'%)');
+ L.push('Avg win '+(W.length?(gw/W.length).toFixed(2):'0')+'; avg loss '+(Ls.length?(-gl/Ls.length).toFixed(2):'0')+'; best '+(W.length?Math.max.apply(null,W).toFixed(2):'0')+'; worst '+(Ls.length?Math.min.apply(null,Ls).toFixed(2):'0')+'; profit factor '+pf);
+ var g={},d={};cl.forEach(function(t){var s=g[t.tk]=g[t.tk]||{p:0,n:0,w:0};s.p+=t.pnl;s.n++;if(t.pnl>0)s.w++;var y=d[t.date]=d[t.date]||{p:0,n:0};y.p+=t.pnl;y.n++});
+ L.push('');L.push('BY TICKER (P&L, trades, wins)');
+ Object.keys(g).sort(function(a,b){return g[b].p-g[a].p}).forEach(function(k){L.push(k+': '+sg(g[k].p)+', '+g[k].n+' trades, '+g[k].w+' wins')});
+ L.push('');L.push('BY DAY (P&L, trades)');
+ Object.keys(d).sort().forEach(function(k){L.push(k+': '+sg(d[k].p)+', '+d[k].n+' trades')});
+ L.push('');L.push('TRADES: close date | contract | open (price per share, date) | close | P&L | held');
+ cl.slice().reverse().forEach(function(t){var ms=t.m||[],od=ms.reduce(function(m,v){return!m||v.date<m?v.date:m},''),cq=sum(ms.map(function(m){return m.q}));
+  var opens=ms.map(function(m){return(m.dir=='L'?'Buy ':'Sell ')+m.q+'@'+(m.p/100).toFixed(2)+' '+m.date}).join(' + ');
+  var close=t.side=='Exp'?'Expired worthless':t.side+' '+cq+'@'+(t.amt/t.qty/100).toFixed(2),days=od?Math.round((new Date(t.date)-new Date(od))/864e5):0;
+  L.push(t.date+' | '+t.tk+' '+Number(t.strike)+' '+t.type+' '+t.exp+' | '+opens+' | '+close+' | '+sg(t.pnl)+' | '+(days?days+'d':'same day'))});
+ var op=mergeOpen(x.C.open);L.push('');L.push('OPEN POSITIONS (unrealized, not in P&L): '+(op.length?'':'none'));
+ op.forEach(function(o){L.push(o.name+' | '+(o.dir=='L'?'Long ':'Short ')+o.q+' avg '+(o.cost/o.q/100).toFixed(2)+' | latest open '+o.date)});
+ L.push('');L.push('Notes: option trades only; P&L is realized per contract; fees excluded for pasted-text trades, CSV trades use price x quantity.');
+ return L.join('\n')}
 function stats(list){var tot=0,w=0,n=0;list.forEach(function(t){if(t.pnl!=null){tot+=t.pnl;n++;if(t.pnl>0)w++}});return{tot:tot,w:w,n:n}}
 function render(){
  var C=compute(),T=C.T,app=document.getElementById('app');
  if(!T.length){app.innerHTML='<div class="card empty">No trades yet.<br>Paste your Robinhood activity below.</div>'+addUI();bind();return}
  var anchor=T.reduce(function(m,t){return t.date>m?t.date:m},'0');buildPER(T);
  var per={};PER.forEach(function(p){var s=startOf(p[0],anchor),en=endOf(p[0]);per[p[0]]=stats(T.filter(function(t){return t.date>=s&&t.date<=en}))});
- var start=startOf(period,anchor),end=endOf(period),F=T.filter(function(t){return t.date>=start&&t.date<=end}),S=per[period];
+ var start=startOf(period,anchor),end=endOf(period),F=T.filter(function(t){return t.date>=start&&t.date<=end}),S=per[period];lastCtx={C:C,F:F,start:start,end:end,S:S,anchor:anchor};
  var h='<div class="card"><div class="mut">Realized P&amp;L \u00b7 1 day ('+dl(anchor)+')</div><div class="big '+cls(per['1D'].tot)+'">'+f(per['1D'].tot,1)+'</div>'+
  '<div class="grid">'+['1W','1M','All'].map(function(p){return'<div class="mini"><span class="mut">'+p+'</span><b class="'+cls(per[p].tot)+'">'+f(per[p].tot,1)+'</b></div>'}).join('')+'</div></div>';
  function isY(p){return typeof p[1]=='string'&&p[1][0]=='Y'}
@@ -170,6 +205,7 @@ function render(){
  h+='<div class="chips" style="margin-bottom:'+(YR.length?6:12)+'px">'+PER.filter(function(p){return!isY(p)}).map(function(p){return chip(p,0)}).join('')+'</div>';
  if(YR.length)h+='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px">'+YR.map(function(p){return chip(p,1)}).join('')+'</div>';
  h+='<div class="card"><div class="mut">'+period+' total</div><div class="big '+cls(S.tot)+'" style="font-size:26px">'+f(S.tot,1)+'</div><div class="mut">'+S.n+' closing trades \u00b7 '+(S.n?Math.round(S.w/S.n*100):0)+'% winners</div></div>';
+ h+='<button class="act sec" id="cp" style="margin:0 0 12px;width:100%">Copy report ('+period+')</button>'+(showRep?'<textarea id="rt" readonly style="height:140px;margin-bottom:12px">'+showRep.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>':'');
  h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open'],['add','Data']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
  if(view=='trades'){var L=F.filter(function(t){return t.pnl!=null}).reverse(),O=mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end})).sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):'<div class="empty">No trades in this period.</div>')+'</div>'}
  if(view=='stock'){var g={};F.filter(function(t){return t.pnl!=null}).concat(mergeOpenDay(C.open.filter(function(o){return o.date>=start&&o.date<=end}))).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
@@ -189,9 +225,10 @@ function render(){
 }
 function addUI(){return'<div class="card"><div class="t" style="font-weight:700;margin-bottom:6px">Add trades</div><div class="mut" style="margin-bottom:8px">Paste Robinhood activity text. Repeated trades are skipped automatically. Realized P&amp;L is matched per contract; fees are ignored. Expired positions count as a full loss/gain.</div><textarea id="ta" placeholder="Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="csv">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none"><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
 function bind(){
- document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){period=b.dataset.p;render()}});
+ document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){period=b.dataset.p;showRep='';render()}});
  document.querySelectorAll('[data-s]').forEach(function(b){b.onclick=function(){stockSort=b.dataset.s;render()}});
  document.querySelectorAll('[data-v]').forEach(function(b){b.onclick=function(){view=b.dataset.v;render()}});
+ var cp=document.getElementById('cp');if(cp)cp.onclick=function(){var t=buildReport();copyText(t,function(ok){if(ok){showRep='';cp.textContent='Copied \u2713';setTimeout(function(){cp.textContent='Copy report ('+period+')'},2000)}else{showRep=t;render();var r=document.getElementById('rt');if(r){r.focus();r.select()}}})};
  var a=document.getElementById('add');if(!a)return;
  var ta=document.getElementById('ta');
  a.onclick=function(){addText(ta.value,false);view=trades.length?'trades':'add';render()};
@@ -208,7 +245,53 @@ function bind(){
   rd.onload=function(){addCSV(String(rd.result),false);view=trades.length?'trades':'add';render()};
   rd.onerror=function(){msg='Could not read that file.';render()};rd.readAsText(file)};
 }
+var calY=new Date().getFullYear(),calM=new Date().getMonth(),selDay='';
+function cf(v){var a=Math.abs(v);return(v<0?'-':'+')+(a>=1000?(a/1000).toFixed(a>=10000?0:1)+'k':Math.round(a))}
+function tIso(){var n=new Date();return iso(n.getFullYear(),n.getMonth()+1,n.getDate())}
+function render(){
+ var C=compute(),T=C.T,app=document.getElementById('app');
+ if(!T.length){app.innerHTML='<div class="card empty">No trades yet.<br>Paste your Robinhood activity below.</div>'+addUI();bind();return}
+ var dim=new Date(Date.UTC(calY,calM+1,0)).getUTCDate(),ms=iso(calY,calM+1,1),me=iso(calY,calM+1,dim),start=selDay||ms,end=selDay||me,td=tIso();
+ var mname=new Date(Date.UTC(calY,calM,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
+ var label=selDay?dl(selDay):new Date(Date.UTC(calY,calM,1)).toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});
+ period=label;
+ var dp={};T.forEach(function(t){if(t.pnl!=null){var x=dp[t.date]=dp[t.date]||{p:0,n:0};x.p+=t.pnl;x.n++}});
+ var F=T.filter(function(t){return t.date>=start&&t.date<=end}),S=stats(F),MS=stats(T.filter(function(t){return t.date>=ms&&t.date<=me}));
+ var anchor=T.reduce(function(m,t){return t.date>m?t.date:m},'0');
+ lastCtx={C:C,F:F,start:start,end:end,S:S,anchor:anchor};
+ var OP=C.open.filter(function(o){return o.date>=start&&o.date<=end}),h='';
+ if(view!='add'){
+  var first=new Date(Date.UTC(calY,calM,1)).getUTCDay(),cells='';
+  ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(function(n){cells+='<div class="dh">'+n+'</div>'});
+  for(var i=0;i<first;i++)cells+='<div class="d e"></div>';
+  for(var dn=1;dn<=dim;dn++){var ds=iso(calY,calM+1,dn),x=dp[ds];
+   cells+='<div class="d'+(x?(x.p>0?' p':x.p<0?' n':''):' e')+(ds==selDay?' sel':'')+(ds==td?' td':'')+'"'+(x?' data-d="'+ds+'"':'')+'><b>'+dn+'</b>'+(x?cf(x.p):'')+'</div>'}
+  h+='<div class="card"><div class="mh"><button class="chip" data-m="-1">\u2039</button><div style="text-align:center"><div class="t" style="font-weight:700;font-size:16px">'+mname+'</div><div class="'+cls(MS.tot)+'" style="font-size:26px;font-weight:700">'+f(MS.tot,1)+'</div><div class="mut">'+MS.n+' closing trades \u00b7 '+(MS.n?Math.round(MS.w/MS.n*100):0)+'% winners</div></div><button class="chip" data-m="1">\u203a</button></div><div class="cal">'+cells+'</div>'+
+   '<div style="text-align:center;margin-top:8px"><button class="chip" id="tdy">This month</button></div>'+
+   (selDay?'<div class="mut" style="text-align:center;margin-top:8px">'+dl(selDay)+': <b class="'+cls(S.tot)+'">'+f(S.tot,1)+'</b> \u00b7 tap the day again to see the whole month</div>':'')+'</div>';
+ }
+ h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
+ var CL=F.filter(function(t){return t.pnl!=null}),MO=mergeOpenDay(OP),NONE='<div class="empty">No trades in this period.</div>';
+ if(view=='trades'){var L=CL.slice().reverse(),O=MO.slice().sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):NONE)+'</div>'}
+ if(view=='stock'){var g={};CL.concat(MO).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
+  var keys=Object.keys(g).sort(function(a,b){if(stockSort=='name')return a.localeCompare(b);var q=stats(g[b]).tot-stats(g[a]).tot;return stockSort=='loss'?-q:q});
+  h+='<div class="chips">'+[['pnl','Profit \u2193'],['loss','Loss \u2193'],['name','Stock A\u2013Z']].map(function(s){return'<button class="chip'+(stockSort==s[0]?' on':'')+'" data-s="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>';
+  h+='<div class="card">'+(keys.length?keys.map(function(k){var s=stats(g[k]);return'<details><summary><div><div class="t" style="font-weight:700">'+k+'</div><div class="mut">'+g[k].length+' trades \u00b7 '+s.w+'/'+s.n+' wins</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+g[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):NONE)+'</div>'}
+ if(view=='day'){var dd={};CL.concat(MO).forEach(function(t){(dd[t.date]=dd[t.date]||[]).push(t)});
+  var ds2=Object.keys(dd).sort().reverse();
+  h+='<div class="card">'+(ds2.length?ds2.map(function(k){var s=stats(dd[k]);return'<details><summary><div><div class="t" style="font-weight:700">'+dl(k)+'</div><div class="mut">'+s.n+' closing trades</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+dd[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):NONE)+'</div>'}
+ if(view=='open'){var op=mergeOpen(OP);
+  h+=op.length?'<div class="card"><div class="t" style="font-weight:700">Open positions (unrealized, not in P&amp;L)</div>'+op.map(function(o){return pairWrap(o.name,f(o.cost),openCol(o.lots),'<div class="mut">Still open</div>',(o.dir=='L'?'Long ':'Short ')+o.q+' \u00b7 '+dl(o.date))}).join('')+'</div>':'<div class="card empty">No open positions opened in this period.</div>'}
+ if(view=='add')h+=addUI();
+ app.innerHTML=h;bind();
+ var ab=document.getElementById('addbtn');if(ab)ab.className='chip'+(view=='add'?' on':'');
+ document.querySelectorAll('[data-m]').forEach(function(b){b.onclick=function(){calM+=+b.dataset.m;if(calM<0){calM=11;calY--}if(calM>11){calM=0;calY++}selDay='';showRep='';render()}});
+ document.querySelectorAll('[data-d]').forEach(function(b){b.onclick=function(){selDay=selDay==b.dataset.d?'':b.dataset.d;render()}});
+ var tdy=document.getElementById('tdy');if(tdy)tdy.onclick=function(){var n=new Date();calY=n.getFullYear();calM=n.getMonth();selDay='';render()};
+ var c6=document.getElementById('cp6');if(c6)c6.onclick=function(){var s6=addDays(td,-182),F6=T.filter(function(t){return t.date>=s6}),old=lastCtx,op0=period;lastCtx={C:C,F:F6,start:s6,end:td,S:stats(F6),anchor:anchor};period='6M';var txt=buildReport();lastCtx=old;period=op0;copyText(txt,function(ok){if(ok){showRep='';c6.textContent='Copied \u2713';setTimeout(function(){c6.textContent='Copy 6M report'},2000)}else{showRep=txt;render()}})};
+}
 var SAMPLE_NOTE='';
+document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
 render();
 </script>
 </body>
