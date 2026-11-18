@@ -223,7 +223,7 @@ function render(){
  if(view=='add'){h+=addUI()}
  app.innerHTML=h;bind();
 }
-function addUI(){return'<div class="card"><div class="t" style="font-weight:700;margin-bottom:6px">Add trades</div><div class="mut" style="margin-bottom:8px">Paste Robinhood activity text. Repeated trades are skipped automatically. Realized P&amp;L is matched per contract; fees are ignored. Expired positions count as a full loss/gain.</div><textarea id="ta" placeholder="Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="csv">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none"><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
+function addUI(){return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> paste your trades (Option 1) <b>or</b> upload a CSV file (Option 2). You don’t need to do both.</div><div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Add Trades (paste)</div><div class="mut" style="margin-bottom:8px">Copy and paste from Robinhood (web) &gt; History directly.<br>Repeated trades are skipped automatically. Realized P&amp;L is matched per contract; fees are ignored. Expired positions count as a full loss/gain.</div><textarea id="ta" placeholder="EXAMPLE ONLY (not real data) - paste your own trades here:&#10;&#10;Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button><div style="text-align:center;color:var(--mut);font-weight:700;margin:16px 0 4px">— OR —</div><div style="border-top:1px solid var(--bd);margin-top:8px;padding-top:12px"><div class="t" style="font-weight:700;margin-bottom:6px">Option 2: Import CSV (file)</div><div class="mut" style="margin-bottom:8px">Generate report from Robinhood (web) &gt; Reports and statements and upload.</div><button class="act sec" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none"></div>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
 function bind(){
  document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){period=b.dataset.p;showRep='';render()}});
  document.querySelectorAll('[data-s]').forEach(function(b){b.onclick=function(){stockSort=b.dataset.s;render()}});
@@ -295,6 +295,7 @@ function render(){
  document.querySelectorAll('[data-sc]').forEach(function(b){b.onclick=function(){scope=b.dataset.sc;selDay='';render()}});
  document.querySelectorAll('[data-y]').forEach(function(b){b.onclick=function(){calY+=+b.dataset.y;render()}});
  document.querySelectorAll('[data-mo]').forEach(function(b){b.onclick=function(){calM=+b.dataset.mo;scope='month';selDay='';render()}});
+ document.querySelectorAll('[data-is]').forEach(function(b){b.onclick=function(){insSub=b.dataset.is;render()}});
  var tdy=document.getElementById('tdy');if(tdy)tdy.onclick=function(){var n=new Date();calY=n.getFullYear();calM=n.getMonth();selDay='';render()};
  var c6=document.getElementById('cp6');if(c6)c6.onclick=function(){var s6=addDays(td,-182),F6=T.filter(function(t){return t.date>=s6}),old=lastCtx,op0=period;lastCtx={C:C,F:F6,start:s6,end:td,S:stats(F6),anchor:anchor};period='6M';var txt=buildReport();lastCtx=old;period=op0;copyText(txt,function(ok){if(ok){showRep='';c6.textContent='Copied \u2713';setTimeout(function(){c6.textContent='Copy 6M report'},2000)}else{showRep=txt;render()}})};
 }
@@ -303,7 +304,7 @@ function scopeBar(){return'<div class="chips" style="margin-bottom:8px">'+[['mon
 function yearCard(T,MS){var mp={};T.forEach(function(t){if(t.pnl!=null&&t.date.slice(0,4)==String(calY)){var k=+t.date.slice(5,7)-1,x=mp[k]=mp[k]||{p:0,n:0};x.p+=t.pnl;x.n++}});
  var tiles='';for(var m=0;m<12;m++){var x=mp[m];tiles+='<div class="d'+(x?(x.p>0?' p':x.p<0?' n':''):' e')+'" style="min-height:58px;padding-top:6px"'+(x?' data-mo="'+m+'"':'')+'><b>'+MNS[m]+'</b>'+(x?cf(x.p)+'<div style="opacity:.8">'+x.n+' trades</div>':'')+'</div>'}
  return'<div class="card"><div class="mh"><button class="chip" data-y="-1">\u2039</button><div style="text-align:center"><div class="t" style="font-weight:700;font-size:16px">'+calY+'</div><div class="'+cls(MS.tot)+'" style="font-size:26px;font-weight:700">'+f(MS.tot,1)+'</div><div class="mut">'+MS.n+' closing trades \u00b7 '+(MS.n?Math.round(MS.w/MS.n*100):0)+'% winners</div></div><button class="chip" data-y="1">\u203a</button></div><div class="cal" style="grid-template-columns:repeat(3,1fr);gap:6px">'+tiles+'</div></div>'}
-function insights(T){
+function insightsAll(T){
  var all=T.filter(function(t){return t.pnl!=null}),ys=String(calY),Y=all.filter(function(t){return t.date.slice(0,4)==ys}),h='';
  function row(l,v,sub,c){return'<div class="row"><div class="l"><div class="t">'+l+'</div><div class="mut">'+sub+'</div></div><div class="r '+(c||'')+'">'+v+'</div></div>'}
  function wr(s){return s.n?Math.round(s.w/s.n*100)+'%':'-'}
@@ -333,6 +334,14 @@ function insights(T){
   row('Worst trade',f(wt.pnl,1),nm(wt),cls(wt.pnl))+'</div>';
  h+='<div class="card"><div class="t" style="font-weight:700;margin-bottom:4px">'+ys+' month by month</div>'+mk.map(Number).sort(function(a,b){return a-b}).map(function(m){var s=mo[m];return row(MNF[m],f(s.p,1),s.n+' trades \u00b7 '+wr(s)+' winners',cls(s.p))}).join('')+'</div>';
  return h}
+var insSub='years';
+function insights(T){
+ var pre='<div class="card"><div class="t" style="font-weight:700;margin-bottom:4px">',ys=String(calY);
+ var bar='<div class="chips" style="margin-bottom:8px">'+[['years','All years'],['high','Highlights'],['month','Month by Month']].map(function(s){return'<button class="chip'+(insSub==s[0]?' on':'')+'" data-is="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>';
+ var has=T.some(function(t){return t.pnl!=null&&t.date.slice(0,4)==ys}),parts=insightsAll(T).split(pre);
+ if(insSub=='years')return bar+pre+parts[1].split('<div class="card empty">')[0];
+ if(!has)return bar+'<div class="card empty">No closed trades in '+ys+'.</div>';
+ return bar+pre+parts[insSub=='high'?2:3]}
 var SAMPLE_NOTE='';
 document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
 render();
