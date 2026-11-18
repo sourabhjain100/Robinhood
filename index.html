@@ -274,8 +274,8 @@ function render(){
    '<div style="text-align:center;margin-top:8px"><button class="chip" id="tdy">This month</button></div>'+
    (selDay?'<div class="mut" style="text-align:center;margin-top:8px">'+dl(selDay)+': <b class="'+cls(S.tot)+'">'+f(S.tot,1)+'</b> \u00b7 tap the day again to see the whole month</div>':'')+'</div>';}
  }
- h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open'],['insights','Insights']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
- var CL=F.filter(function(t){return t.pnl!=null}),MO=mergeOpenDay(OP),NONE='<div class="empty">No trades in this period.</div>';
+ h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['insights','Insights']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
+ var CL=F.filter(function(t){return t.pnl!=null}),MO=[],NONE='<div class="empty">No trades in this period.</div>';
  if(view=='trades'){var L=CL.slice().reverse(),O=MO.slice().sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):NONE)+'</div>'}
  if(view=='stock'){var g={};CL.concat(MO).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
   var keys=Object.keys(g).sort(function(a,b){if(stockSort=='name')return a.localeCompare(b);var q=stats(g[b]).tot-stats(g[a]).tot;return stockSort=='loss'?-q:q});
