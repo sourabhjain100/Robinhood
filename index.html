@@ -48,7 +48,8 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 </style>
 </head>
 <body>
-<div class="top"><h1>Robinhood P&amp;L Report</h1><button class="chip" id="addbtn">Add or Upload data</button></div>
+<h1>Robinhood P&amp;L Report</h1>
+<div class="top"><div id="sc"></div><button class="chip" id="addbtn">Add or Upload data</button></div>
 <div id="app"></div>
 <script>
 var KEY='rh_trades_v1',SEQ='rh_seq_v1',stockSort='pnl',lastCtx=null,showRep='';
@@ -250,7 +251,7 @@ function cf(v){var a=Math.abs(v);return(v<0?'-':'+')+(a>=1000?(a/1000).toFixed(a
 function tIso(){var n=new Date();return iso(n.getFullYear(),n.getMonth()+1,n.getDate())}
 function render(){
  var C=compute(),T=C.T,app=document.getElementById('app');
- if(!T.length){app.innerHTML='<div class="card empty">No trades yet.<br>Paste your Robinhood activity below.</div>'+addUI();bind();return}
+ if(!T.length){app.innerHTML='<div class="card empty">No trades yet.<br>Paste your Robinhood activity below.</div>'+addUI();bind();var s0=document.getElementById('sc');if(s0)s0.innerHTML='';return}
  var dim=new Date(Date.UTC(calY,calM+1,0)).getUTCDate(),ms=iso(calY,calM+1,1),me=iso(calY,calM+1,dim),start=selDay||ms,end=selDay||me,td=tIso();
  if(scope=='year'){ms=iso(calY,1,1);me=iso(calY,12,31);start=ms;end=me;selDay=''}
  var mname=new Date(Date.UTC(calY,calM,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
@@ -263,7 +264,6 @@ function render(){
  lastCtx={C:C,F:F,start:start,end:end,S:S,anchor:anchor};
  var OP=C.open.filter(function(o){return o.date>=start&&o.date<=end}),h='';
  if(view!='add'){
-  h+=scopeBar();
   if(scope=='year'){h+=yearCard(T,MS)}else{
   var first=new Date(Date.UTC(calY,calM,1)).getUTCDay(),cells='';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(function(n){cells+='<div class="dh">'+n+'</div>'});
@@ -289,6 +289,7 @@ function render(){
  if(view=='insights')h+=insights(T);
  if(view=='add')h+=addUI();
  app.innerHTML=h;bind();
+ var sc=document.getElementById('sc');if(sc)sc.innerHTML=view!='add'?scopeBar():'';
  var ab=document.getElementById('addbtn');if(ab)ab.className='chip'+(view=='add'?' on':'');
  document.querySelectorAll('[data-m]').forEach(function(b){b.onclick=function(){calM+=+b.dataset.m;if(calM<0){calM=11;calY--}if(calM>11){calM=0;calY++}selDay='';showRep='';render()}});
  document.querySelectorAll('[data-d]').forEach(function(b){b.onclick=function(){selDay=selDay==b.dataset.d?'':b.dataset.d;render()}});
@@ -300,7 +301,7 @@ function render(){
  var c6=document.getElementById('cp6');if(c6)c6.onclick=function(){var s6=addDays(td,-182),F6=T.filter(function(t){return t.date>=s6}),old=lastCtx,op0=period;lastCtx={C:C,F:F6,start:s6,end:td,S:stats(F6),anchor:anchor};period='6M';var txt=buildReport();lastCtx=old;period=op0;copyText(txt,function(ok){if(ok){showRep='';c6.textContent='Copied \u2713';setTimeout(function(){c6.textContent='Copy 6M report'},2000)}else{showRep=txt;render()}})};
 }
 var scope='month',MNS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],MNF=['January','February','March','April','May','June','July','August','September','October','November','December'],WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-function scopeBar(){return'<div class="chips" style="margin-bottom:8px">'+[['month','Month'],['year','Year']].map(function(s){return'<button class="chip'+(scope==s[0]?' on':'')+'" data-sc="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>'}
+function scopeBar(){return'<div class="chips" style="margin:0;padding:0">'+[['month','Month'],['year','Year']].map(function(s){return'<button class="chip'+(scope==s[0]?' on':'')+'" data-sc="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>'}
 function yearCard(T,MS){var mp={};T.forEach(function(t){if(t.pnl!=null&&t.date.slice(0,4)==String(calY)){var k=+t.date.slice(5,7)-1,x=mp[k]=mp[k]||{p:0,n:0};x.p+=t.pnl;x.n++}});
  var tiles='';for(var m=0;m<12;m++){var x=mp[m];tiles+='<div class="d'+(x?(x.p>0?' p':x.p<0?' n':''):' e')+'" style="min-height:58px;padding-top:6px"'+(x?' data-mo="'+m+'"':'')+'><b>'+MNS[m]+'</b>'+(x?cf(x.p)+'<div style="opacity:.8">'+x.n+' trades</div>':'')+'</div>'}
  return'<div class="card"><div class="mh"><button class="chip" data-y="-1">\u2039</button><div style="text-align:center"><div class="t" style="font-weight:700;font-size:16px">'+calY+'</div><div class="'+cls(MS.tot)+'" style="font-size:26px;font-weight:700">'+f(MS.tot,1)+'</div><div class="mut">'+MS.n+' closing trades \u00b7 '+(MS.n?Math.round(MS.w/MS.n*100):0)+'% winners</div></div><button class="chip" data-y="1">\u203a</button></div><div class="cal" style="grid-template-columns:repeat(3,1fr);gap:6px">'+tiles+'</div></div>'}
