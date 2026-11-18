@@ -252,15 +252,19 @@ function render(){
  var C=compute(),T=C.T,app=document.getElementById('app');
  if(!T.length){app.innerHTML='<div class="card empty">No trades yet.<br>Paste your Robinhood activity below.</div>'+addUI();bind();return}
  var dim=new Date(Date.UTC(calY,calM+1,0)).getUTCDate(),ms=iso(calY,calM+1,1),me=iso(calY,calM+1,dim),start=selDay||ms,end=selDay||me,td=tIso();
+ if(scope=='year'){ms=iso(calY,1,1);me=iso(calY,12,31);start=ms;end=me;selDay=''}
  var mname=new Date(Date.UTC(calY,calM,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
  var label=selDay?dl(selDay):new Date(Date.UTC(calY,calM,1)).toLocaleDateString('en-US',{month:'short',year:'numeric',timeZone:'UTC'});
  period=label;
+ if(scope=='year')period=String(calY);
  var dp={};T.forEach(function(t){if(t.pnl!=null){var x=dp[t.date]=dp[t.date]||{p:0,n:0};x.p+=t.pnl;x.n++}});
  var F=T.filter(function(t){return t.date>=start&&t.date<=end}),S=stats(F),MS=stats(T.filter(function(t){return t.date>=ms&&t.date<=me}));
  var anchor=T.reduce(function(m,t){return t.date>m?t.date:m},'0');
  lastCtx={C:C,F:F,start:start,end:end,S:S,anchor:anchor};
  var OP=C.open.filter(function(o){return o.date>=start&&o.date<=end}),h='';
  if(view!='add'){
+  h+=scopeBar();
+  if(scope=='year'){h+=yearCard(T,MS)}else{
   var first=new Date(Date.UTC(calY,calM,1)).getUTCDay(),cells='';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(function(n){cells+='<div class="dh">'+n+'</div>'});
   for(var i=0;i<first;i++)cells+='<div class="d e"></div>';
@@ -268,9 +272,9 @@ function render(){
    cells+='<div class="d'+(x?(x.p>0?' p':x.p<0?' n':''):' e')+(ds==selDay?' sel':'')+(ds==td?' td':'')+'"'+(x?' data-d="'+ds+'"':'')+'><b>'+dn+'</b>'+(x?cf(x.p):'')+'</div>'}
   h+='<div class="card"><div class="mh"><button class="chip" data-m="-1">\u2039</button><div style="text-align:center"><div class="t" style="font-weight:700;font-size:16px">'+mname+'</div><div class="'+cls(MS.tot)+'" style="font-size:26px;font-weight:700">'+f(MS.tot,1)+'</div><div class="mut">'+MS.n+' closing trades \u00b7 '+(MS.n?Math.round(MS.w/MS.n*100):0)+'% winners</div></div><button class="chip" data-m="1">\u203a</button></div><div class="cal">'+cells+'</div>'+
    '<div style="text-align:center;margin-top:8px"><button class="chip" id="tdy">This month</button></div>'+
-   (selDay?'<div class="mut" style="text-align:center;margin-top:8px">'+dl(selDay)+': <b class="'+cls(S.tot)+'">'+f(S.tot,1)+'</b> \u00b7 tap the day again to see the whole month</div>':'')+'</div>';
+   (selDay?'<div class="mut" style="text-align:center;margin-top:8px">'+dl(selDay)+': <b class="'+cls(S.tot)+'">'+f(S.tot,1)+'</b> \u00b7 tap the day again to see the whole month</div>':'')+'</div>';}
  }
- h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
+ h+='<div class="tabs">'+[['trades','Trades'],['stock','By Stock'],['day','By Day'],['open','Open'],['insights','Insights']].map(function(v){return'<button class="tab'+(view==v[0]?' on':'')+'" data-v="'+v[0]+'">'+v[1]+'</button>'}).join('')+'</div>';
  var CL=F.filter(function(t){return t.pnl!=null}),MO=mergeOpenDay(OP),NONE='<div class="empty">No trades in this period.</div>';
  if(view=='trades'){var L=CL.slice().reverse(),O=MO.slice().sort(function(a,b){return a.date<b.date?1:-1});h+='<div class="card">'+(L.length||O.length?O.map(openRow).join('')+L.map(pairRow).join(''):NONE)+'</div>'}
  if(view=='stock'){var g={};CL.concat(MO).forEach(function(t){(g[t.tk]=g[t.tk]||[]).push(t)});
@@ -282,14 +286,53 @@ function render(){
   h+='<div class="card">'+(ds2.length?ds2.map(function(k){var s=stats(dd[k]);return'<details><summary><div><div class="t" style="font-weight:700">'+dl(k)+'</div><div class="mut">'+s.n+' closing trades</div></div><div class="r '+cls(s.tot)+'" style="font-weight:700">'+f(s.tot,1)+'</div></summary><div class="body">'+dd[k].slice().reverse().map(itemRow).join('')+'</div></details>'}).join(''):NONE)+'</div>'}
  if(view=='open'){var op=mergeOpen(OP);
   h+=op.length?'<div class="card"><div class="t" style="font-weight:700">Open positions (unrealized, not in P&amp;L)</div>'+op.map(function(o){return pairWrap(o.name,f(o.cost),openCol(o.lots),'<div class="mut">Still open</div>',(o.dir=='L'?'Long ':'Short ')+o.q+' \u00b7 '+dl(o.date))}).join('')+'</div>':'<div class="card empty">No open positions opened in this period.</div>'}
+ if(view=='insights')h+=insights(T);
  if(view=='add')h+=addUI();
  app.innerHTML=h;bind();
  var ab=document.getElementById('addbtn');if(ab)ab.className='chip'+(view=='add'?' on':'');
  document.querySelectorAll('[data-m]').forEach(function(b){b.onclick=function(){calM+=+b.dataset.m;if(calM<0){calM=11;calY--}if(calM>11){calM=0;calY++}selDay='';showRep='';render()}});
  document.querySelectorAll('[data-d]').forEach(function(b){b.onclick=function(){selDay=selDay==b.dataset.d?'':b.dataset.d;render()}});
+ document.querySelectorAll('[data-sc]').forEach(function(b){b.onclick=function(){scope=b.dataset.sc;selDay='';render()}});
+ document.querySelectorAll('[data-y]').forEach(function(b){b.onclick=function(){calY+=+b.dataset.y;render()}});
+ document.querySelectorAll('[data-mo]').forEach(function(b){b.onclick=function(){calM=+b.dataset.mo;scope='month';selDay='';render()}});
  var tdy=document.getElementById('tdy');if(tdy)tdy.onclick=function(){var n=new Date();calY=n.getFullYear();calM=n.getMonth();selDay='';render()};
  var c6=document.getElementById('cp6');if(c6)c6.onclick=function(){var s6=addDays(td,-182),F6=T.filter(function(t){return t.date>=s6}),old=lastCtx,op0=period;lastCtx={C:C,F:F6,start:s6,end:td,S:stats(F6),anchor:anchor};period='6M';var txt=buildReport();lastCtx=old;period=op0;copyText(txt,function(ok){if(ok){showRep='';c6.textContent='Copied \u2713';setTimeout(function(){c6.textContent='Copy 6M report'},2000)}else{showRep=txt;render()}})};
 }
+var scope='month',MNS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],MNF=['January','February','March','April','May','June','July','August','September','October','November','December'],WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function scopeBar(){return'<div class="chips" style="margin-bottom:8px">'+[['month','Month'],['year','Year']].map(function(s){return'<button class="chip'+(scope==s[0]?' on':'')+'" data-sc="'+s[0]+'">'+s[1]+'</button>'}).join('')+'</div>'}
+function yearCard(T,MS){var mp={};T.forEach(function(t){if(t.pnl!=null&&t.date.slice(0,4)==String(calY)){var k=+t.date.slice(5,7)-1,x=mp[k]=mp[k]||{p:0,n:0};x.p+=t.pnl;x.n++}});
+ var tiles='';for(var m=0;m<12;m++){var x=mp[m];tiles+='<div class="d'+(x?(x.p>0?' p':x.p<0?' n':''):' e')+'" style="min-height:58px;padding-top:6px"'+(x?' data-mo="'+m+'"':'')+'><b>'+MNS[m]+'</b>'+(x?cf(x.p)+'<div style="opacity:.8">'+x.n+' trades</div>':'')+'</div>'}
+ return'<div class="card"><div class="mh"><button class="chip" data-y="-1">\u2039</button><div style="text-align:center"><div class="t" style="font-weight:700;font-size:16px">'+calY+'</div><div class="'+cls(MS.tot)+'" style="font-size:26px;font-weight:700">'+f(MS.tot,1)+'</div><div class="mut">'+MS.n+' closing trades \u00b7 '+(MS.n?Math.round(MS.w/MS.n*100):0)+'% winners</div></div><button class="chip" data-y="1">\u203a</button></div><div class="cal" style="grid-template-columns:repeat(3,1fr);gap:6px">'+tiles+'</div></div>'}
+function insights(T){
+ var all=T.filter(function(t){return t.pnl!=null}),ys=String(calY),Y=all.filter(function(t){return t.date.slice(0,4)==ys}),h='';
+ function row(l,v,sub,c){return'<div class="row"><div class="l"><div class="t">'+l+'</div><div class="mut">'+sub+'</div></div><div class="r '+(c||'')+'">'+v+'</div></div>'}
+ function wr(s){return s.n?Math.round(s.w/s.n*100)+'%':'-'}
+ var yr={};all.forEach(function(t){var k=t.date.slice(0,4),s=yr[k]=yr[k]||{p:0,n:0,w:0};s.p+=t.pnl;s.n++;if(t.pnl>0)s.w++});
+ h+='<div class="card"><div class="t" style="font-weight:700;margin-bottom:4px">All years</div>'+Object.keys(yr).sort().reverse().map(function(k){var s=yr[k];return row(k,f(s.p,1),s.n+' trades \u00b7 '+wr(s)+' winners',cls(s.p))}).join('')+'</div>';
+ if(!Y.length)return h+'<div class="card empty">No closed trades in '+ys+'.</div>';
+ var mo={},dy={},wd={};
+ Y.forEach(function(t){var m=+t.date.slice(5,7)-1,a=mo[m]=mo[m]||{p:0,n:0,w:0},b=dy[t.date]=dy[t.date]||{p:0,n:0,w:0},wk=new Date(t.date+'T00:00:00Z').getUTCDay(),c=wd[wk]=wd[wk]||{p:0,n:0,w:0};[a,b,c].forEach(function(s){s.p+=t.pnl;s.n++;if(t.pnl>0)s.w++})});
+ Object.keys(mo).forEach(function(k){mo[k].r=mo[k].w/mo[k].n});
+ function pick(o,key,hi,min){var r=null;Object.keys(o).forEach(function(k){if(o[k].n<(min||0))return;if(r===null||(hi?o[k][key]>o[r][key]:o[k][key]<o[r][key]))r=k});return r}
+ var mk=Object.keys(mo),pm=mk.filter(function(k){return mo[k].p>0}).length,total=Y.reduce(function(s,t){return s+t.pnl},0);
+ var bm=pick(mo,'p',1),wm=pick(mo,'p',0),am=pick(mo,'n',1),rm=pick(mo,'r',1,5),bd=pick(dy,'p',1),wdy=pick(dy,'p',0),bw=pick(wd,'p',1),ww=pick(wd,'p',0),aw=pick(wd,'n',1);
+ var bt=Y.reduce(function(a,t){return!a||t.pnl>a.pnl?t:a},null),wt=Y.reduce(function(a,t){return!a||t.pnl<a.pnl?t:a},null);
+ function nm(t){return t.tk+' '+Number(t.strike)+' '+t.type+' '+t.exp+' \u00b7 '+dl(t.date)}
+ h+='<div class="card"><div class="t" style="font-weight:700;margin-bottom:4px">'+ys+' highlights</div>'+
+  row('Most profitable month',f(mo[bm].p,1),MNF[bm]+' \u00b7 '+mo[bm].n+' trades',cls(mo[bm].p))+
+  row('Least profitable month',f(mo[wm].p,1),MNF[wm]+' \u00b7 '+mo[wm].n+' trades',cls(mo[wm].p))+
+  row('Most trades in a month',mo[am].n+' trades',MNF[am]+' \u00b7 '+f(mo[am].p,1))+
+  (rm!==null?row('Best win rate month',wr(mo[rm]),MNF[rm]+' \u00b7 '+mo[rm].n+' trades'):'')+
+  row('Profitable months',pm+' of '+mk.length,'Average '+f(total/mk.length,1)+' per month')+
+  row('Best day',f(dy[bd].p,1),dl(bd)+' \u00b7 '+dy[bd].n+' trades',cls(dy[bd].p))+
+  row('Worst day',f(dy[wdy].p,1),dl(wdy)+' \u00b7 '+dy[wdy].n+' trades',cls(dy[wdy].p))+
+  row('Best weekday',f(wd[bw].p,1),WD[bw]+' \u00b7 '+wd[bw].n+' trades \u00b7 '+wr(wd[bw])+' winners',cls(wd[bw].p))+
+  row('Worst weekday',f(wd[ww].p,1),WD[ww]+' \u00b7 '+wd[ww].n+' trades \u00b7 '+wr(wd[ww])+' winners',cls(wd[ww].p))+
+  row('Busiest weekday',wd[aw].n+' trades',WD[aw]+' \u00b7 '+f(wd[aw].p,1))+
+  row('Best trade',f(bt.pnl,1),nm(bt),cls(bt.pnl))+
+  row('Worst trade',f(wt.pnl,1),nm(wt),cls(wt.pnl))+'</div>';
+ h+='<div class="card"><div class="t" style="font-weight:700;margin-bottom:4px">'+ys+' month by month</div>'+mk.map(Number).sort(function(a,b){return a-b}).map(function(m){var s=mo[m];return row(MNF[m],f(s.p,1),s.n+' trades \u00b7 '+wr(s)+' winners',cls(s.p))}).join('')+'</div>';
+ return h}
 var SAMPLE_NOTE='';
 document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
 render();
