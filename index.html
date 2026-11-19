@@ -129,7 +129,8 @@ function addParsed(p,replace){if(!p.length){msg='No trades found.';return}
  save();
 }
 function compute(){
- var T=trades.map(function(t){return Object.assign({},t,{pnl:null,hide:false})});
+ var T=trades.map(function(t){return Object.assign({},t,{pnl:null,hide:false,tk:RN[t.tk]||t.tk})});
+ if(MODE!='opt')T.forEach(function(t){SP.forEach(function(s){if(s.tk==t.tk&&t.date<s.date&&t.qty)t.qty=t.qty*s.ratio})});
  T.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.side=='Exp')-(b.side=='Exp'))||a.seq-b.seq});
  var pos={};
  T.forEach(function(t){
@@ -417,8 +418,8 @@ function setMode(m){MODE=m;MULT=m=='opt'?100:1;KEY=MKEYS[m][0];SEQ=MKEYS[m][1];
  selDay='';msg='';showRep='';syncMode();render()}
 function chrome(show){['mtabs','sc','addbtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=show?'':'none'})}
 function renderAdd(){chrome(false);var names={stk:'Stocks',opt:'Options',cry:'Crypto',div:'Dividends'};
- document.getElementById('app').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px"><div class="t" style="font-weight:700;font-size:16px">Add or Upload Data</div><button class="chip" id="back">Back</button></div>'+addUI();
- bind();document.getElementById('back').onclick=function(){view='trades';render()}}
+ document.getElementById('app').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px"><div class="t" style="font-weight:700;font-size:16px">Add or Upload Data</div><button class="chip" id="back">Back</button></div>'+addUI()+rsCard();
+ bind();bindRS();document.getElementById('back').onclick=function(){view='trades';render()}}
 function addUI(){
  var csvNote={opt:'Option rows are used.',stk:'Stock buy and sell rows are used.',cry:'The crypto CSV needs Date, Asset or Symbol, Side, Quantity and Price columns.',div:'Dividend, foreign tax, ADR fee and stock lending rows are used.'}[MODE];
  var ex=MODE=='div'?'DIVIDENDS&#10;Dividend from AAPL&#10;Oct 9&#10;$0.25':'OPTIONS&#10;Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00&#10;&#10;STOCKS&#10;Buy ASTS&#10;Oct 9&#10;$4,801.66&#10;100 shares at $48.02&#10;&#10;CRYPTO&#10;Buy BTC&#10;Oct 9&#10;$640.00&#10;0.01 BTC at $64,000.00';
@@ -460,6 +461,22 @@ function addUI(){
  return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> upload a CSV file (Option 1) <b>or</b> paste your trades (Option 2). You don\u2019t need to do both. Everything is sorted automatically into Stocks, Options, Crypto and Dividends.</div>'+
   '<div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Import CSV (File)</div><div class="mut" style="margin-bottom:8px">Generate report from Robinhood &gt; Reports and statements and upload. Stock, option and dividend rows are used. A crypto CSV needs Date, Asset or Symbol, Side, Quantity and Price columns.</div><button class="act" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">'+
   '<div style="text-align:center;color:var(--mut);font-weight:700;margin:16px 0 4px">\u2014 OR \u2014</div><div style="border-top:1px solid var(--bd);margin-top:8px;padding-top:12px"><div class="t" style="font-weight:700;margin-bottom:6px">Option 2: Add Trades (Paste)</div><div class="mut" style="margin-bottom:8px">Copy and paste from Robinhood &gt; History directly.<br>Repeated trades are skipped automatically. Realized P&amp;L is matched in time order for each contract or ticker; fees are ignored for pasted trades. Expired options count as a full loss/gain.</div><textarea id="ta" style="height:260px" placeholder="EXAMPLES ONLY (not real data) - paste your own trades here:&#10;&#10;'+ex+'"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button></div>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
+var RN={},SP=[];
+try{var r0=localStorage.getItem('rh_renames_v1');RN=r0?JSON.parse(r0):{GNUS:'TOON'};if(!r0)localStorage.setItem('rh_renames_v1',JSON.stringify(RN));SP=JSON.parse(localStorage.getItem('rh_splits_v1')||'[]')}catch(e){RN={GNUS:'TOON'};SP=[]}
+function saveRS(){try{localStorage.setItem('rh_renames_v1',JSON.stringify(RN));localStorage.setItem('rh_splits_v1',JSON.stringify(SP))}catch(e){}}
+function fmtRatio(r){return r>=1?(+r.toFixed(4))+'-for-1':'1-for-'+(+(1/r).toFixed(4))}
+var INP='style="flex:1;min-width:0;padding:9px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font-size:14px"';
+function rsCard(){
+ var rn=Object.keys(RN).map(function(k){return'<div class="row"><div class="l"><div class="t">'+k+' \u2192 '+RN[k]+'</div></div><button class="chip" data-rr="'+k+'">Remove</button></div>'}).join('')||'<div class="mut">None</div>';
+ var sp=SP.map(function(s,i){return'<div class="row"><div class="l"><div class="t">'+s.tk+' '+fmtRatio(s.ratio)+' on '+dl(s.date)+'</div></div><button class="chip" data-rs="'+i+'">Remove</button></div>'}).join('')||'<div class="mut">None</div>';
+ return'<div class="card"><div class="t" style="font-weight:700;margin-bottom:6px">Ticker Renames</div><div class="mut" style="margin-bottom:8px">If a company changed its ticker, list it here (old to new). Trades under both names are combined into one stock.</div>'+rn+'<div style="display:flex;gap:8px;margin-top:10px"><input id="rn-old" placeholder="Old (FB)" '+INP+'><input id="rn-new" placeholder="New (META)" '+INP+'></div><button class="act sec" id="rn-add">Add Rename</button></div>'+
+  '<div class="card"><div class="t" style="font-weight:700;margin-bottom:6px">Stock Splits</div><div class="mut" style="margin-bottom:8px">Enter the current ticker, the ratio and the split date. Use 10 for a 10-for-1 split, or 0.1 for a 1-for-10 reverse split. Trades before that date are adjusted. Applies to stocks and crypto, not options.</div>'+sp+'<div style="display:flex;gap:8px;margin-top:10px"><input id="sp-tk" placeholder="Ticker" '+INP+'><input id="sp-ratio" placeholder="Ratio (10)" inputmode="decimal" '+INP+'></div><input id="sp-date" type="date" '+INP+' style="margin-top:8px;width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font-size:14px"><button class="act sec" id="sp-add">Add Split</button></div>'}
+function bindRS(){
+ function v(id){var e=document.getElementById(id);return e?e.value.trim():''}
+ var ra=document.getElementById('rn-add');if(ra)ra.onclick=function(){var o=v('rn-old').toUpperCase(),n=v('rn-new').toUpperCase();if(o&&n&&o!=n){RN[o]=n;saveRS();msg='Renamed '+o+' to '+n+'.';render()}};
+ var sa=document.getElementById('sp-add');if(sa)sa.onclick=function(){var t=v('sp-tk').toUpperCase(),r=parseFloat(v('sp-ratio')),d=v('sp-date');if(t&&r>0&&r!=1&&/^\d{4}-\d{2}-\d{2}$/.test(d)){SP.push({tk:t,ratio:r,date:d});saveRS();msg='Split added for '+t+'.';render()}};
+ document.querySelectorAll('[data-rr]').forEach(function(b){b.onclick=function(){delete RN[b.dataset.rr];saveRS();msg='Rename removed.';render()}});
+ document.querySelectorAll('[data-rs]').forEach(function(b){b.onclick=function(){SP.splice(+b.dataset.rs,1);saveRS();msg='Split removed.';render()}})}
 var SAMPLE_NOTE='';
 document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
 document.getElementById('m-opt').onclick=function(){setMode('opt')};
