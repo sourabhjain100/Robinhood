@@ -52,7 +52,7 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 </style>
 </head>
 <body>
-<div id="landing" style="padding-top:6vh"><h1 style="font-size:24px;margin:0 0 6px;text-align:center">Trade P&amp;L Report</h1><div class="mut" style="text-align:center;margin-bottom:20px">Choose Your Broker To Continue</div><button class="card pick" id="pick-rh" style="border-left:4px solid #00c805">Robinhood<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks, Options, Crypto and Dividends</div></button><button class="card pick" id="pick-wb" style="border-left:4px solid #1f6bff">Webull<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks and Options</div></button><div class="mut" style="text-align:center;margin-top:16px">Your data stays in this browser and is never uploaded.</div></div>
+<div id="landing" style="padding-top:6vh"><h1 style="font-size:24px;margin:0 0 6px;text-align:center">Trade P&amp;L Report</h1><div class="mut" style="text-align:center;margin-bottom:20px">Choose Your Broker To Continue</div><button class="card pick" id="pick-rh" style="border-left:4px solid #00c805">Robinhood<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks and Options</div></button><button class="card pick" id="pick-wb" style="border-left:4px solid #1f6bff">Webull<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks and Options</div></button><div class="mut" style="text-align:center;margin-top:16px">Your data stays in this browser and is never uploaded.</div></div>
 <div id="shell" style="display:none">
 <div id="swrow" style="margin-bottom:8px"><button class="chip" id="swbtn">&#8249; Switch Platform</button></div>
 <div class="top" id="hd"><h1 id="ttl">Robinhood P&amp;L Report</h1><button class="chip" id="addbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Add or Upload Data</button></div>
@@ -453,7 +453,7 @@ function parseUnits(text,kind){
  }
  return out}
 function ingestAll0(kind,text,replace){
- var cur=MODE,ms=['stk','opt','cry','div'],P={},any=0,NM={stk:'stock trade',opt:'option trade',cry:'crypto trade',div:'dividend payment'};
+ var cur=MODE,ms=['stk','opt'],P={},any=0,NM={stk:'stock trade',opt:'option trade',cry:'crypto trade',div:'dividend payment'};
  ms.forEach(function(m){loadMode(m);var p=[];try{if(kind=='csv'){if(/Trans Code/i.test(text)){if(m!='cry')p=parseCSV(text)}else if(m=='cry')p=parseCryptoCSV(text)}else p=m=='opt'?parseOpt(text):m=='div'?parseDiv(text):parseUnits(text,m)}catch(e){p=[]}P[m]=p;any+=p.length});
  if(!any){loadMode(cur);msg='No trades found in that '+(kind=='csv'?'file':'text')+'.';lastAdded=0;return}
  var parts=[],dup=0,data={},tot=0;
@@ -465,9 +465,9 @@ function addCSV(text,replace){ingestAll('csv',text,replace)}
 function addText(text,replace){var h=text.split(/\r?\n/)[0]||'';ingestAll(/Trans Code/i.test(text)||(/Quantity/i.test(h)&&/[\t,]/.test(h))?'csv':'text',text,replace)}
 function clearAll(){var cur=MODE;['stk','opt','cry','div'].forEach(function(m){loadMode(m);trades=[];seq=0;save()});loadMode(cur)}
 function addUI1(){
- var ex='OPTIONS&#10;Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00&#10;&#10;STOCKS&#10;Buy ASTS&#10;Oct 9&#10;$4,801.66&#10;100 shares at $48.02&#10;&#10;CRYPTO&#10;Buy BTC&#10;Oct 9&#10;$640.00&#10;0.01 BTC at $64,000.00&#10;&#10;DIVIDENDS&#10;Dividend from AAPL&#10;Oct 9&#10;$0.25';
- return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> upload a CSV file (Option 1) <b>or</b> paste your trades (Option 2). You don\u2019t need to do both. Everything is sorted automatically into Stocks, Options, Crypto and Dividends.</div>'+
-  '<div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Import CSV (File)</div><div class="mut" style="margin-bottom:8px">Generate report from Robinhood &gt; Reports and statements and upload. Stock, option and dividend rows are used. A crypto CSV needs Date, Asset or Symbol, Side, Quantity and Price columns.</div><button class="act" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">'+
+ var ex='OPTIONS&#10;Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00&#10;&#10;STOCKS&#10;Buy ASTS&#10;Oct 9&#10;$4,801.66&#10;100 shares at $48.02';
+ return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> upload a CSV file (Option 1) <b>or</b> paste your trades (Option 2). You don\u2019t need to do both. Everything is sorted automatically into Stocks and Options.</div>'+
+  '<div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Import CSV (File)</div><div class="mut" style="margin-bottom:8px">Generate report from Robinhood &gt; Reports and statements and upload. Stock and option rows are used.</div><button class="act" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">'+
   '<div style="text-align:center;color:var(--mut);font-weight:700;margin:16px 0 4px">\u2014 OR \u2014</div><div style="border-top:1px solid var(--bd);margin-top:8px;padding-top:12px"><div class="t" style="font-weight:700;margin-bottom:6px">Option 2: Add Trades (Paste)</div><div class="mut" style="margin-bottom:8px">Copy and paste from Robinhood &gt; History directly.<br>Repeated trades are skipped automatically. Realized P&amp;L is matched in time order for each contract or ticker; fees are ignored for pasted trades. Expired options count as a full loss/gain.</div><textarea id="ta" style="height:260px" placeholder="EXAMPLES ONLY (not real data) - paste your own trades here:&#10;&#10;'+ex+'"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button></div>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
 var RN={},SP=[];
 try{var r0=localStorage.getItem('rh_renames_v1');RN=r0?JSON.parse(r0):{FB:'META'};if(!r0)localStorage.setItem('rh_renames_v1',JSON.stringify(RN));SP=JSON.parse(localStorage.getItem('rh_splits_v1')||'[]')}catch(e){RN={FB:'META'};SP=[]}
@@ -525,10 +525,10 @@ function addUI(){return PLAT=='wb'?wbUI():addUI1()}
 function showLanding(){document.getElementById('landing').style.display='';document.getElementById('shell').style.display='none'}
 function enterPlat(p){PLAT=p;loadRS();document.getElementById('landing').style.display='none';document.getElementById('shell').style.display='';
  document.getElementById('ttl').textContent=(p=='wb'?'Webull':'Robinhood')+' P&L Report';
- ['m-cry','m-div'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=p=='wb'?'none':''});
+ ['m-cry','m-div'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display='none'});
  view='trades';scope='month';var n=new Date();calY=n.getFullYear();calM=n.getMonth();selDay='';msg='';showRep='';
  var m0=null;try{m0=localStorage.getItem('rh_mode')}catch(e){}
- var ok=p=='wb'?['stk','opt']:['stk','opt','cry','div'];
+ var ok=['stk','opt'];
  setMode(m0&&ok.indexOf(m0)>-1?m0:(p=='wb'?'stk':'opt'))}
 var SAMPLE_NOTE='';
 document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
