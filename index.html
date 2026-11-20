@@ -36,6 +36,7 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 .pair .mut{font-size:11px}
 #mtabs .tab{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px}#mtabs .ic{display:flex;line-height:0}#mtabs .ic svg{width:20px;height:20px}
 #addbtn{display:inline-flex;align-items:center;gap:6px}#addbtn svg{width:16px;height:16px}
+.pick{display:block;width:100%;text-align:left;cursor:pointer;color:var(--tx);font:700 17px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:18px}
 #sc{margin-bottom:8px}#sc:empty{display:none}.top{flex-wrap:wrap}
 .mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -51,10 +52,14 @@ button.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 </style>
 </head>
 <body>
-<div class="top" id="hd"><h1>Robinhood P&amp;L Report</h1><button class="chip" id="addbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Add or Upload Data</button></div>
+<div id="landing" style="padding-top:6vh"><h1 style="font-size:24px;margin:0 0 6px;text-align:center">Trade P&amp;L Report</h1><div class="mut" style="text-align:center;margin-bottom:20px">Choose Your Broker To Continue</div><button class="card pick" id="pick-rh" style="border-left:4px solid #00c805">Robinhood<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks, Options, Crypto and Dividends</div></button><button class="card pick" id="pick-wb" style="border-left:4px solid #1f6bff">Webull<div class="mut" style="font-weight:400;font-size:13px;margin-top:4px">Stocks and Options</div></button><div class="mut" style="text-align:center;margin-top:16px">Your data stays in this browser and is never uploaded.</div></div>
+<div id="shell" style="display:none">
+<div id="swrow" style="margin-bottom:8px"><button class="chip" id="swbtn">&#8249; Switch Platform</button></div>
+<div class="top" id="hd"><h1 id="ttl">Robinhood P&amp;L Report</h1><button class="chip" id="addbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Add or Upload Data</button></div>
 <div class="tabs" id="mtabs"><button class="tab" id="m-stk"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span>Stocks</span></button><button class="tab" id="m-opt"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Options</span></button><button class="tab" id="m-cry"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2L8.29 4.26m5.908 1.042.348-1.97M7.48 20.364l3.126-17.727"/></svg></span><span>Crypto</span></button><button class="tab" id="m-div"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg></span><span>Dividends</span></button></div>
 <div id="sc"></div>
 <div id="app"></div>
+</div>
 <script>
 var KEY='rh_trades_v1',SEQ='rh_seq_v1',stockSort='pnl',lastCtx=null,showRep='';
 var trades=[],seq=0,period='1D',view='trades',msg='';
@@ -63,7 +68,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(trades));localStorag
 var MON={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
 function iso(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
 function parseDate(s){var rel=s.match(/^(\d+)\s*(s|m|min|h|hr|hrs|d)$/i);
- if(rel){var n=new Date();if(rel[2].toLowerCase()=='d')n.setDate(n.getDate()-rel[1]);return iso(n.getFullYear(),n.getMonth()+1,n.getDate())}
+ if(rel){var u=rel[2].toLowerCase(),msu={s:1e3,m:6e4,min:6e4,h:36e5,hr:36e5,hrs:36e5,d:864e5}[u],n=new Date(Date.now()-rel[1]*msu);return iso(n.getFullYear(),n.getMonth()+1,n.getDate())}
  var m=s.match(/^([A-Za-z]{3})\w* (\d{1,2})$/);if(!m||!MON[m[1]])return null;
  var now=new Date(),y=now.getFullYear(),mo=MON[m[1]],d=+m[2];
  if(new Date(y,mo-1,d)>new Date(now.getTime()+864e5))y--;return iso(y,mo,d)}
@@ -111,7 +116,7 @@ function parseCSV(text){
   var m=(r[ci.de]||'').match(/(\S+) (\d{1,2})\/(\d{1,2})\/(\d{4}) (Call|Put) \$([\d,.]+)/),dm=(r[ci.ad]||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(!m||!dm){csvSkipped++;continue}
   var qty=parseInt((r[ci.q]||'').replace(/[^\d]/g,''))||0,amt=qty*(parseFloat((r[ci.pr]||'').replace(/[$,\s]/g,''))||0)*100,av=Math.abs(parseFloat((r[ci.a]||'').replace(/[$,()\s-]/g,'')))||0,fee=code=='OEXP'||!av?0:Math.max(0,Math.round((code[0]=='B'?av-amt:amt-av)*100)/100);
-  out.push({side:code=='OEXP'?'Exp':(code[0]=='B'?'Buy':'Sell'),tk:m[1],strike:m[6].replace(/,/g,''),type:m[5],exp:(+m[2])+'/'+(+m[3]),date:iso(dm[3],+dm[1],+dm[2]),qty:code=='OEXP'?qty:qty,amt:code=='OEXP'?0:amt,fee:fee});
+  out.push({side:code=='OEXP'?'Exp':(code[0]=='B'?'Buy':'Sell'),tk:m[1],strike:m[6].replace(/,/g,''),type:m[5],exp:(+m[2])+'/'+(+m[3]),edate:iso(m[4],+m[2],+m[3]),date:iso(dm[3],+dm[1],+dm[2]),qty:code=='OEXP'?qty:qty,amt:code=='OEXP'?0:amt,fee:fee});
  }
  if(out.length>1&&out[0].date<out[out.length-1].date)out.reverse();
  return out}
@@ -126,13 +131,14 @@ function addParsed(p,replace){if(!p.length){msg='No trades found.';return}
   }
  // occurrence index counted in input order so re-pastes dedupe
  p.forEach(function(t){var b=[t.side,t.tk,t.strike,t.type,t.exp,t.date,t.qty,t.amt].join('|');cnt[b]=(cnt[b]||0)+1;t.sig=b+'#'+cnt[b]});
- for(var j=p.length-1;j>=0;j--){var t2=p[j];if(seen[t2.sig]){var ot=seen[t2.sig];if(ot.fee==null)ot.fee=t2.fee||0;continue}t2.seq=seq++;trades.push(t2);added++}
+ for(var j=p.length-1;j>=0;j--){var t2=p[j];if(seen[t2.sig]){var ot=seen[t2.sig];if(ot.fee==null)ot.fee=t2.fee||0;if(!ot.edate&&t2.edate)ot.edate=t2.edate;continue}t2.seq=seq++;trades.push(t2);added++}
  lastN=added;msg='Added '+added+' trade'+(added==1?'':'s')+(p.length-added?' ('+(p.length-added)+' duplicates skipped)':'')+'.';
  save();
 }
 function compute(){
  var T=trades.map(function(t){return Object.assign({},t,{pnl:null,hide:false,tk:RN[t.tk]||t.tk})});
  if(MODE!='opt')T.forEach(function(t){SP.forEach(function(s){if(s.tk==t.tk&&t.date<s.date&&t.qty)t.qty=t.qty*s.ratio})});
+ if(MODE=='opt'){var sk={},tdy0=tIso();T.slice().forEach(function(t){var k=[t.tk,+t.strike,t.type,t.exp].join('|');if(!sk[k]&&t.edate&&t.edate<tdy0){sk[k]=1;T.push({side:'Exp',tk:t.tk,strike:t.strike,type:t.type,exp:t.exp,date:t.edate,qty:0,amt:0,fee:0,seq:1e12,pnl:null,hide:false})}})}
  T.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:((a.side=='Exp')-(b.side=='Exp'))||a.seq-b.seq});
  var pos={};
  T.forEach(function(t){
@@ -418,7 +424,7 @@ function syncMode(){['opt','stk','cry','div'].forEach(function(m){var b=document
 function setMode(m){MODE=m;MULT=m=='opt'?100:1;KEY=MKEYS[m][0];SEQ=MKEYS[m][1];
  try{trades=JSON.parse(localStorage.getItem(KEY)||'[]');seq=+(localStorage.getItem(SEQ)||0);localStorage.setItem('rh_mode',m)}catch(e){trades=[];seq=0}
  selDay='';msg='';showRep='';syncMode();render()}
-function chrome(show){['mtabs','sc','addbtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=show?'':'none'})}
+function chrome(show){['swrow','mtabs','sc','addbtn'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=show?'':'none'})}
 function renderAdd(){chrome(false);var names={stk:'Stocks',opt:'Options',cry:'Crypto',div:'Dividends'};
  document.getElementById('app').innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px"><div class="t" style="font-weight:700;font-size:16px">Add or Upload Data</div><button class="chip" id="back">Back</button></div>'+addUI()+rsCard();
  bind();bindRS();document.getElementById('back').onclick=function(){view='trades';render()}}
@@ -446,7 +452,7 @@ function parseUnits(text,kind){
    i+=4}else i++;
  }
  return out}
-function ingestAll(kind,text,replace){
+function ingestAll0(kind,text,replace){
  var cur=MODE,ms=['stk','opt','cry','div'],P={},any=0,NM={stk:'stock trade',opt:'option trade',cry:'crypto trade',div:'dividend payment'};
  ms.forEach(function(m){loadMode(m);var p=[];try{if(kind=='csv'){if(/Trans Code/i.test(text)){if(m!='cry')p=parseCSV(text)}else if(m=='cry')p=parseCryptoCSV(text)}else p=m=='opt'?parseOpt(text):m=='div'?parseDiv(text):parseUnits(text,m)}catch(e){p=[]}P[m]=p;any+=p.length});
  if(!any){loadMode(cur);msg='No trades found in that '+(kind=='csv'?'file':'text')+'.';lastAdded=0;return}
@@ -458,7 +464,7 @@ function ingestAll(kind,text,replace){
 function addCSV(text,replace){ingestAll('csv',text,replace)}
 function addText(text,replace){var h=text.split(/\r?\n/)[0]||'';ingestAll(/Trans Code/i.test(text)||(/Quantity/i.test(h)&&/[\t,]/.test(h))?'csv':'text',text,replace)}
 function clearAll(){var cur=MODE;['stk','opt','cry','div'].forEach(function(m){loadMode(m);trades=[];seq=0;save()});loadMode(cur)}
-function addUI(){
+function addUI1(){
  var ex='OPTIONS&#10;Sell NDXP 29,200 Put 10/16&#10;Oct 16&#10;$1,800.00&#10;1 contract at $18.00&#10;&#10;STOCKS&#10;Buy ASTS&#10;Oct 9&#10;$4,801.66&#10;100 shares at $48.02&#10;&#10;CRYPTO&#10;Buy BTC&#10;Oct 9&#10;$640.00&#10;0.01 BTC at $64,000.00&#10;&#10;DIVIDENDS&#10;Dividend from AAPL&#10;Oct 9&#10;$0.25';
  return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> upload a CSV file (Option 1) <b>or</b> paste your trades (Option 2). You don\u2019t need to do both. Everything is sorted automatically into Stocks, Options, Crypto and Dividends.</div>'+
   '<div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Import CSV (File)</div><div class="mut" style="margin-bottom:8px">Generate report from Robinhood &gt; Reports and statements and upload. Stock, option and dividend rows are used. A crypto CSV needs Date, Asset or Symbol, Side, Quantity and Price columns.</div><button class="act" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">'+
@@ -479,6 +485,51 @@ function bindRS(){
  var sa=document.getElementById('sp-add');if(sa)sa.onclick=function(){var t=v('sp-tk').toUpperCase(),r=parseFloat(v('sp-ratio')),d=v('sp-date');if(t&&r>0&&r!=1&&/^\d{4}-\d{2}-\d{2}$/.test(d)){SP.push({tk:t,ratio:r,date:d});saveRS();msg='Split added for '+t+'.';render()}};
  document.querySelectorAll('[data-rr]').forEach(function(b){b.onclick=function(){delete RN[b.dataset.rr];saveRS();msg='Rename removed.';render()}});
  document.querySelectorAll('[data-rs]').forEach(function(b){b.onclick=function(){SP.splice(+b.dataset.rs,1);saveRS();msg='Split removed.';render()}})}
+var PLAT='rh';
+(function(){var _g=Storage.prototype.getItem,_s=Storage.prototype.setItem;function pk(k){return PLAT=='wb'&&String(k).indexOf('rh_')==0?'wb_'+String(k).slice(3):k}
+ Storage.prototype.getItem=function(k){return _g.call(this,pk(k))};Storage.prototype.setItem=function(k,v){return _s.call(this,pk(k),v)}})();
+function loadRS(){var d=PLAT=='wb'?{}:{FB:'META'};try{var r0=localStorage.getItem('rh_renames_v1');RN=r0?JSON.parse(r0):d;if(!r0)localStorage.setItem('rh_renames_v1',JSON.stringify(RN));SP=JSON.parse(localStorage.getItem('rh_splits_v1')||'[]')}catch(e){RN=d;SP=[]}}
+function parseWebull(text){
+ var rows=splitRows(text),hi=-1,out={stk:[],opt:[]},list=[];
+ for(var r0=0;r0<rows.length&&hi<0;r0++){var H0=rows[r0].map(function(x){return x.trim().toLowerCase()});if(H0.indexOf('filled time')>-1&&H0.indexOf('symbol')>-1&&H0.indexOf('side')>-1)hi=r0}
+ if(hi<0)return out;
+ var H=rows[hi].map(function(x){return x.trim().toLowerCase()}),ci={s:H.indexOf('symbol'),sd:H.indexOf('side'),f:H.indexOf('filled'),ap:H.indexOf('avg price'),p:H.indexOf('price'),ft:H.indexOf('filled time')};
+ for(var i=hi+1;i<rows.length;i++){var r=rows[i];if(r.length<6)continue;
+  var sdv=(r[ci.sd]||'').trim(),side=/^buy/i.test(sdv)?'Buy':/^sell/i.test(sdv)?'Sell':'';
+  if(!side)continue;
+  var q=parseFloat((r[ci.f]||'').replace(/[^\d.]/g,''))||0;if(!q)continue;
+  var pr=parseFloat((r[ci.ap]||'').replace(/[@$,\s]/g,''))||parseFloat((r[ci.p]||'').replace(/[@$,\s]/g,''))||0;if(!pr)continue;
+  var dm=(r[ci.ft]||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);if(!dm)continue;
+  var date=iso(dm[3],+dm[1],+dm[2]),ts=date+' '+String(dm[4]||0).padStart(2,'0')+':'+(dm[5]||'00')+':'+(dm[6]||'00');
+  var sym=(r[ci.s]||'').trim().toUpperCase(),om=sym.match(/^([A-Z.]{1,6})(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/);
+  if(om){list.push({ts:ts,k:'opt',ord:i,t:{side:side,tk:om[1],strike:String(parseInt(om[6],10)/1000),type:om[5]=='C'?'Call':'Put',exp:(+om[3])+'/'+(+om[4])+'/'+om[2],edate:iso(2000+(+om[2]),+om[3],+om[4]),date:date,qty:q,amt:q*pr*100,fee:0}})}
+  else list.push({ts:ts,k:'stk',ord:i,t:{side:side,tk:sym,strike:'',type:'',exp:'',date:date,qty:q,amt:q*pr,fee:0}})}
+ list.sort(function(a,b){return a.ts<b.ts?1:a.ts>b.ts?-1:a.ord-b.ord});
+ list.forEach(function(x){out[x.k].push(x.t)});
+ return out}
+function ingestWb(text,replace){
+ var cur=MODE,P=parseWebull(text),ms=['stk','opt'],NM={stk:'stock order',opt:'option order'};
+ if(!P.stk.length&&!P.opt.length){msg='No filled Webull orders found. Use the orders CSV exported from Webull.';lastAdded=0;return}
+ var parts=[],dup=0,data={},tot=0;
+ ms.forEach(function(m){loadMode(m);if(replace){trades=[];seq=0;save()}lastN=0;if(P[m].length){addParsed(P[m],false);var n=lastN;tot+=n;dup+=P[m].length-n;parts.push(n+' '+NM[m]+(n==1?'':'s'))}data[m]=trades.length});
+ var target=data[cur]>0?cur:(ms.filter(function(m){return data[m]>0})[0]||'stk');
+ loadMode(target);try{localStorage.setItem('rh_mode',target)}catch(e){}syncMode();selDay='';
+ lastAdded=tot;msg=(replace?'Replaced everything. ':'')+'Added '+parts.join(', ')+(dup?' ('+dup+' duplicates skipped)':'')+'.'}
+function ingestAll(kind,text,replace){if(PLAT=='wb')return ingestWb(text,replace);return ingestAll0(kind,text,replace)}
+function wbUI(){
+ var ex='Name,Symbol,Side,Status,Filled,Total Qty,Price,Avg Price,Time-in-Force,Placed Time,Filled Time&#10;Rivian Automotive Inc.,RIVN,Buy,Filled,5,5,108.54,108.54,DAY,11/10/2021 13:02:02 EST,11/10/2021 13:02:02 EST&#10;ABNB210129C00200000,ABNB210129C00200000,Sell,Filled,1,1,@1.2,1.2,DAY,01/28/2021 15:23:19 EST,01/28/2021 15:41:05 EST';
+ return'<div class="card"><div class="mut" style="margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:10px"><b>Choose one:</b> upload your Webull orders CSV (Option 1) <b>or</b> paste its contents (Option 2). You don\u2019t need to do both. Stocks and options are sorted automatically.</div>'+
+  '<div class="t" style="font-weight:700;margin-bottom:6px">Option 1: Import CSV (File)</div><div class="mut" style="margin-bottom:8px">Export your order history from Webull as a CSV and upload it. Your stock file and your options file both work. Only filled orders are used.</div><button class="act" id="csv" style="margin-top:0">Import CSV</button><input type="file" id="csvf" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">'+
+  '<div style="text-align:center;color:var(--mut);font-weight:700;margin:16px 0 4px">\u2014 OR \u2014</div><div style="border-top:1px solid var(--bd);margin-top:8px;padding-top:12px"><div class="t" style="font-weight:700;margin-bottom:6px">Option 2: Paste CSV Text</div><div class="mut" style="margin-bottom:8px">Open the Webull CSV in any text editor, copy everything and paste it here.<br>Repeated orders are skipped automatically. Profit is matched in time order for each contract or ticker. Webull\u2019s export has no fees, and options that expired unsold count as a full loss on their expiry date.</div><textarea id="ta" style="height:200px" placeholder="EXAMPLE ONLY (not real data) - paste your own CSV here:&#10;&#10;'+ex+'"></textarea><button class="act" id="add">Add trades</button><button class="act sec" id="rep">Replace all</button><button class="act sec" id="clr">Clear all</button></div>'+(msg?'<div class="mut" style="margin-top:8px">'+msg+'</div>':'')+'</div>'}
+function addUI(){return PLAT=='wb'?wbUI():addUI1()}
+function showLanding(){document.getElementById('landing').style.display='';document.getElementById('shell').style.display='none'}
+function enterPlat(p){PLAT=p;loadRS();document.getElementById('landing').style.display='none';document.getElementById('shell').style.display='';
+ document.getElementById('ttl').textContent=(p=='wb'?'Webull':'Robinhood')+' P&L Report';
+ ['m-cry','m-div'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=p=='wb'?'none':''});
+ view='trades';scope='month';var n=new Date();calY=n.getFullYear();calM=n.getMonth();selDay='';msg='';showRep='';
+ var m0=null;try{m0=localStorage.getItem('rh_mode')}catch(e){}
+ var ok=p=='wb'?['stk','opt']:['stk','opt','cry','div'];
+ setMode(m0&&ok.indexOf(m0)>-1?m0:(p=='wb'?'stk':'opt'))}
 var SAMPLE_NOTE='';
 document.getElementById('addbtn').onclick=function(){view=view=='add'?'trades':'add';render()};
 document.getElementById('m-opt').onclick=function(){setMode('opt')};
@@ -487,6 +538,9 @@ document.getElementById('m-cry').onclick=function(){setMode('cry')};
 document.getElementById('m-div').onclick=function(){setMode('div')};
 try{var m0=localStorage.getItem('rh_mode');if(m0&&m0!='opt'&&MKEYS[m0])setMode(m0)}catch(e){}
 syncMode();
+document.getElementById('pick-rh').onclick=function(){enterPlat('rh')};
+document.getElementById('pick-wb').onclick=function(){enterPlat('wb')};
+document.getElementById('swbtn').onclick=showLanding;
 render();
 </script>
 </body>
